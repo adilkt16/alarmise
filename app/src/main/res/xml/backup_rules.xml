@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude alarm data from backup for security -->
+    <exclude domain="database" path="alarm_database" />
+    <exclude domain="sharedpref" path="alarm_prefs.xml" />
+</full-backup-content>

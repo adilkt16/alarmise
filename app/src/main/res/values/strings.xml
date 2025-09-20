@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">Alarmise</string>
+    <string name="alarm_set">Alarm Set</string>
+    <string name="alarm_cancelled">Alarm Cancelled</string>
+    <string name="set_alarm">Set Alarm</string>
+    <string name="cancel_alarm">Cancel Alarm</string>
+    
+    <!-- Alarm Setup -->
+    <string name="start_time">Start Time</string>
+    <string name="end_time">End Time</string>
+    <string name="alarm_duration">Alarm Duration</string>
+    
+    <!-- Math Puzzle -->
+    <string name="solve_puzzle">Solve this math puzzle to stop the alarm:</string>
+    <string name="enter_answer">Enter your answer</string>
+    <string name="submit_answer">Submit</string>
+    <string name="incorrect_answer">Incorrect! Try again.</string>
+    <string name="alarm_stopped">Alarm stopped!</string>
+    
+    <!-- Notifications -->
+    <string name="alarm_channel_name">Alarm Notifications</string>
+    <string name="alarm_channel_description">Notifications for active alarms</string>
+    <string name="alarm_playing">Alarm is playing</string>
+    <string name="solve_math_to_stop">Solve the math puzzle to stop</string>
+    
+    <!-- Permissions -->
+    <string name="permission_required">Permission Required</string>
+    <string name="alarm_permission_message">Alarmise needs permission to set exact alarms to work properly.</string>
+    <string name="battery_optimization_message">Alarmise needs to be excluded from battery optimization to ensure alarms work reliably.</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="deny">Deny</string>
+    
+    <!-- Error Messages -->
+    <string name="error_invalid_time">Please select valid start and end times</string>
+    <string name="error_end_before_start">End time must be after start time</string>
+    <string name="error_permission_denied">Permission denied. Alarms may not work properly.</string>
+</resources>

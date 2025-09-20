@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material 3 Color Tokens -->
+    <color name="md_theme_primary">#FF6B46</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_primaryContainer">#FFDBD0</color>
+    <color name="md_theme_onPrimaryContainer">#2F1A00</color>
+    
+    <color name="md_theme_secondary">#765848</color>
+    <color name="md_theme_onSecondary">#FFFFFF</color>
+    <color name="md_theme_secondaryContainer">#FFDBD0</color>
+    <color name="md_theme_onSecondaryContainer">#2B1509</color>
+    
+    <color name="md_theme_tertiary">#5F6135</color>
+    <color name="md_theme_onTertiary">#FFFFFF</color>
+    <color name="md_theme_tertiaryContainer">#E4E5AF</color>
+    <color name="md_theme_onTertiaryContainer">#1C1F00</color>
+    
+    <color name="md_theme_error">#BA1A1A</color>
+    <color name="md_theme_errorContainer">#FFDAD6</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_onErrorContainer">#410002</color>
+    
+    <color name="md_theme_background">#FFFBFF</color>
+    <color name="md_theme_onBackground">#201A18</color>
+    <color name="md_theme_surface">#FFFBFF</color>
+    <color name="md_theme_onSurface">#201A18</color>
+    
+    <color name="md_theme_surfaceVariant">#F4DDD7</color>
+    <color name="md_theme_onSurfaceVariant">#52443E</color>
+    <color name="md_theme_outline">#84746D</color>
+    <color name="md_theme_outlineVariant">#D6C2BB</color>
+    
+    <color name="md_theme_inverseSurface">#362F2C</color>
+    <color name="md_theme_inverseOnSurface">#FAEFE9</color>
+    <color name="md_theme_inversePrimary">#FFBB94</color>
+    
+    <!-- Custom colors -->
+    <color name="alarm_background">#FF1744</color>
+    <color name="alarm_text">#FFFFFF</color>
+    <color name="math_puzzle_background">#FFFFFF</color>
+    <color name="math_puzzle_text">#000000</color>
+</resources>
