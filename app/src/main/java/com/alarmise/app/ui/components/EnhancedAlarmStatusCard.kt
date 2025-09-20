@@ -1,0 +1,459 @@
+package com.alarmise.app.ui.components
+
+import androidx.compose.animation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.alarmise.app.data.model.Alarm
+import kotlinx.coroutines.delay
+import java.time.Duration
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+
+enum class AlarmStatus {
+    WAITING,    // Alarm is set but not yet active
+    ACTIVE,     // Alarm is currently playing
+    DISMISSED,  // Alarm was stopped via math puzzle
+    EXPIRED,    // Alarm ended naturally at end time
+    CANCELLED   // Alarm was manually cancelled
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EnhancedAlarmStatusCard(
+    alarm: Alarm?,
+    currentTime: LocalTime = LocalTime.now(),
+    onCancelAlarm: (Alarm) -> Unit,
+    onSnoozeAlarm: ((Alarm) -> Unit)? = null
+) {
+    var displayTime by remember { mutableStateOf(currentTime) }
+    
+    // Update time every second
+    LaunchedEffect(Unit) {
+        while (true) {
+            displayTime = LocalTime.now()
+            delay(1000)
+        }
+    }
+    
+    AnimatedVisibility(
+        visible = alarm != null,
+        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+    ) {
+        alarm?.let { alarmData ->
+            val status = determineAlarmStatus(alarmData, displayTime)
+            val timeUntilStart = if (status == AlarmStatus.WAITING) {
+                calculateTimeUntil(displayTime, alarmData.startTime)
+            } else null
+            
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Alarm status card showing ${status.name.lowercase()} alarm" },
+                colors = CardDefaults.cardColors(
+                    containerColor = when (status) {
+                        AlarmStatus.WAITING -> MaterialTheme.colorScheme.primaryContainer
+                        AlarmStatus.ACTIVE -> MaterialTheme.colorScheme.errorContainer
+                        AlarmStatus.DISMISSED -> MaterialTheme.colorScheme.secondaryContainer
+                        AlarmStatus.EXPIRED -> MaterialTheme.colorScheme.tertiaryContainer
+                        AlarmStatus.CANCELLED -> MaterialTheme.colorScheme.surfaceVariant
+                    }
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Header with status and actions
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            StatusIcon(status = status)
+                            
+                            Column {
+                                Text(
+                                    text = status.getDisplayText(),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = getStatusColor(status)
+                                )
+                                Text(
+                                    text = alarmData.label,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = getStatusColor(status).copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                        
+                        // Action buttons
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (status == AlarmStatus.ACTIVE && onSnoozeAlarm != null) {
+                                IconButton(
+                                    onClick = { onSnoozeAlarm(alarmData) },
+                                    modifier = Modifier.semantics { 
+                                        contentDescription = "Snooze alarm for 5 minutes" 
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Snooze,
+                                        contentDescription = "Snooze",
+                                        tint = getStatusColor(status)
+                                    )
+                                }
+                            }
+                            
+                            if (status != AlarmStatus.DISMISSED && status != AlarmStatus.EXPIRED) {
+                                IconButton(
+                                    onClick = { onCancelAlarm(alarmData) },
+                                    modifier = Modifier.semantics { 
+                                        contentDescription = "Cancel alarm" 
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Cancel",
+                                        tint = getStatusColor(status)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Countdown or progress information
+                    when (status) {
+                        AlarmStatus.WAITING -> {
+                            timeUntilStart?.let { countdown ->
+                                CountdownDisplay(
+                                    timeUntil = countdown,
+                                    startTime = alarmData.startTime,
+                                    endTime = alarmData.endTime,
+                                    statusColor = getStatusColor(status)
+                                )
+                            }
+                        }
+                        AlarmStatus.ACTIVE -> {
+                            ActiveAlarmProgress(
+                                alarm = alarmData,
+                                currentTime = displayTime,
+                                statusColor = getStatusColor(status)
+                            )
+                        }
+                        else -> {
+                            AlarmSummary(
+                                alarm = alarmData,
+                                status = status,
+                                statusColor = getStatusColor(status)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusIcon(status: AlarmStatus) {
+    val (icon, size) = when (status) {
+        AlarmStatus.WAITING -> Icons.Default.Schedule to 32.dp
+        AlarmStatus.ACTIVE -> Icons.Default.VolumeUp to 32.dp
+        AlarmStatus.DISMISSED -> Icons.Default.CheckCircle to 32.dp
+        AlarmStatus.EXPIRED -> Icons.Default.AccessTime to 32.dp
+        AlarmStatus.CANCELLED -> Icons.Default.Cancel to 32.dp
+    }
+    
+    Icon(
+        icon,
+        contentDescription = "Status: ${status.name.lowercase()}",
+        modifier = Modifier.size(size),
+        tint = getStatusColor(status)
+    )
+}
+
+@Composable
+private fun CountdownDisplay(
+    timeUntil: Duration,
+    startTime: LocalTime,
+    endTime: LocalTime,
+    statusColor: Color
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Countdown timer
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = statusColor.copy(alpha = 0.1f)
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Starts in",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = statusColor.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = formatDuration(timeUntil),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        
+        // Schedule details
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "Start: ${formatTime(startTime)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = statusColor.copy(alpha = 0.8f)
+                )
+                Text(
+                    text = "End: ${formatTime(endTime)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = statusColor.copy(alpha = 0.8f)
+                )
+            }
+            
+            Text(
+                text = calculateDuration(startTime, endTime),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                color = statusColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActiveAlarmProgress(
+    alarm: Alarm,
+    currentTime: LocalTime,
+    statusColor: Color
+) {
+    val totalDuration = Duration.between(alarm.startTime, alarm.endTime.let { 
+        if (it.isBefore(alarm.startTime)) it.plusHours(24) else it 
+    })
+    val elapsedDuration = Duration.between(alarm.startTime, currentTime.let {
+        if (it.isBefore(alarm.startTime)) it.plusHours(24) else it
+    })
+    
+    val progress = (elapsedDuration.toMinutes().toFloat() / totalDuration.toMinutes().toFloat()).coerceIn(0f, 1f)
+    val remainingTime = totalDuration.minus(elapsedDuration)
+    
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Progress bar
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "ALARM ACTIVE",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor
+                )
+                Text(
+                    text = "${(progress * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            LinearProgressIndicator(
+                progress = progress,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp),
+                color = statusColor,
+                trackColor = statusColor.copy(alpha = 0.2f)
+            )
+        }
+        
+        // Time remaining
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = statusColor.copy(alpha = 0.1f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Time Remaining",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = statusColor.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = formatDuration(remainingTime),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor
+                    )
+                }
+                
+                Icon(
+                    Icons.Default.VolumeUp,
+                    contentDescription = "Currently playing",
+                    modifier = Modifier.size(24.dp),
+                    tint = statusColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlarmSummary(
+    alarm: Alarm,
+    status: AlarmStatus,
+    statusColor: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "Duration: ${calculateDuration(alarm.startTime, alarm.endTime)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = statusColor.copy(alpha = 0.8f)
+            )
+            Text(
+                text = "${formatTime(alarm.startTime)} - ${formatTime(alarm.endTime)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = statusColor.copy(alpha = 0.8f)
+            )
+        }
+        
+        Text(
+            text = when (status) {
+                AlarmStatus.DISMISSED -> "✓ Solved"
+                AlarmStatus.EXPIRED -> "⏰ Ended"
+                AlarmStatus.CANCELLED -> "✕ Cancelled"
+                else -> ""
+            },
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Medium,
+            color = statusColor
+        )
+    }
+}
+
+// Helper functions
+private fun determineAlarmStatus(alarm: Alarm, currentTime: LocalTime): AlarmStatus {
+    return when {
+        !alarm.isActive -> AlarmStatus.CANCELLED
+        currentTime.isBefore(alarm.startTime) -> AlarmStatus.WAITING
+        currentTime.isAfter(alarm.endTime) && !alarm.startTime.isAfter(alarm.endTime) -> AlarmStatus.EXPIRED
+        currentTime.isAfter(alarm.startTime) || (alarm.startTime.isAfter(alarm.endTime) && currentTime.isBefore(alarm.endTime)) -> AlarmStatus.ACTIVE
+        else -> AlarmStatus.WAITING
+    }
+}
+
+private fun calculateTimeUntil(currentTime: LocalTime, targetTime: LocalTime): Duration {
+    return if (targetTime.isAfter(currentTime)) {
+        Duration.between(currentTime, targetTime)
+    } else {
+        Duration.between(currentTime, targetTime.plusHours(24))
+    }
+}
+
+@Composable
+private fun getStatusColor(status: AlarmStatus): Color {
+    return when (status) {
+        AlarmStatus.WAITING -> MaterialTheme.colorScheme.onPrimaryContainer
+        AlarmStatus.ACTIVE -> MaterialTheme.colorScheme.onErrorContainer
+        AlarmStatus.DISMISSED -> MaterialTheme.colorScheme.onSecondaryContainer
+        AlarmStatus.EXPIRED -> MaterialTheme.colorScheme.onTertiaryContainer
+        AlarmStatus.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+}
+
+private fun AlarmStatus.getDisplayText(): String {
+    return when (this) {
+        AlarmStatus.WAITING -> "SCHEDULED"
+        AlarmStatus.ACTIVE -> "ACTIVE"
+        AlarmStatus.DISMISSED -> "DISMISSED"
+        AlarmStatus.EXPIRED -> "COMPLETED"
+        AlarmStatus.CANCELLED -> "CANCELLED"
+    }
+}
+
+private fun formatDuration(duration: Duration): String {
+    val hours = duration.toHours()
+    val minutes = duration.toMinutes() % 60
+    val seconds = duration.seconds % 60
+    
+    return when {
+        hours > 0 -> "${hours}h ${minutes}m ${seconds}s"
+        minutes > 0 -> "${minutes}m ${seconds}s"
+        else -> "${seconds}s"
+    }
+}
+
+private fun formatTime(time: LocalTime): String {
+    return time.format(DateTimeFormatter.ofPattern("HH:mm"))
+}
+
+private fun calculateDuration(startTime: LocalTime, endTime: LocalTime): String {
+    val duration = if (startTime.isAfter(endTime)) {
+        Duration.between(startTime, endTime.plusHours(24))
+    } else {
+        Duration.between(startTime, endTime)
+    }
+    
+    val hours = duration.toHours()
+    val minutes = duration.toMinutes() % 60
+    
+    return when {
+        hours == 0L -> "${minutes}min"
+        minutes == 0L -> "${hours}h"
+        else -> "${hours}h ${minutes}min"
+    }
+}

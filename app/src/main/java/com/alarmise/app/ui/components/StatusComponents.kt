@@ -1,0 +1,355 @@
+package com.alarmise.app.ui.components
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.alarmise.app.data.model.MathPuzzle
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EmergencyStopInfoCard(
+    modifier: Modifier = Modifier,
+    expanded: Boolean = false,
+    onToggleExpanded: () -> Unit = {}
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = "Emergency stop information and math puzzle explanation" },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.warningContainer
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        onClick = onToggleExpanded
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = "Important information",
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.onWarningContainer
+                    )
+                    
+                    Column {
+                        Text(
+                            text = "How to Stop Alarms",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onWarningContainer
+                        )
+                        Text(
+                            text = "Math puzzles only - no snooze!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onWarningContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+                
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.onWarningContainer
+                )
+            }
+            
+            // Key points (always visible)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                InfoPoint(
+                    icon = Icons.Default.Calculate,
+                    text = "Solve math puzzle to stop alarm",
+                    color = MaterialTheme.colorScheme.onWarningContainer
+                )
+                InfoPoint(
+                    icon = Icons.Default.Block,
+                    text = "No snooze or easy dismiss options",
+                    color = MaterialTheme.colorScheme.onWarningContainer
+                )
+                InfoPoint(
+                    icon = Icons.Default.AccessTime,
+                    text = "Alarm stops automatically at end time",
+                    color = MaterialTheme.colorScheme.onWarningContainer
+                )
+            }
+            
+            // Detailed explanation (expandable)
+            if (expanded) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Divider(
+                        color = MaterialTheme.colorScheme.onWarningContainer.copy(alpha = 0.3f)
+                    )
+                    
+                    // Difficulty examples
+                    Text(
+                        text = "Math Puzzle Examples",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onWarningContainer
+                    )
+                    
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        DifficultyExample(
+                            difficulty = MathPuzzle.Difficulty.EASY,
+                            example = "12 + 8 = ?",
+                            description = "Simple addition and subtraction"
+                        )
+                        DifficultyExample(
+                            difficulty = MathPuzzle.Difficulty.MEDIUM,
+                            example = "7 × 6 = ?",
+                            description = "Basic multiplication and division"
+                        )
+                        DifficultyExample(
+                            difficulty = MathPuzzle.Difficulty.HARD,
+                            example = "15 × 3 + 8 = ?",
+                            description = "Multi-step calculations"
+                        )
+                    }
+                    
+                    Divider(
+                        color = MaterialTheme.colorScheme.onWarningContainer.copy(alpha = 0.3f)
+                    )
+                    
+                    // Emergency information
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.EmergencyShare,
+                                    contentDescription = "Emergency",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Text(
+                                    text = "Emergency Override",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                            
+                            Text(
+                                text = "In true emergencies, you can force-stop the app by restarting your device or force-closing the app from system settings.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                textAlign = TextAlign.Justify
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatusMessagesCard(
+    currentStatus: AlarmStatus,
+    statusMessage: String? = null,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = "Current alarm status: ${currentStatus.name.lowercase()}" },
+        colors = CardDefaults.cardColors(
+            containerColor = when (currentStatus) {
+                AlarmStatus.WAITING -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                AlarmStatus.ACTIVE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+                AlarmStatus.DISMISSED -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+                AlarmStatus.EXPIRED -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+                AlarmStatus.CANCELLED -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Status icon with animation
+            val statusIcon = when (currentStatus) {
+                AlarmStatus.WAITING -> Icons.Default.Schedule
+                AlarmStatus.ACTIVE -> Icons.Default.VolumeUp
+                AlarmStatus.DISMISSED -> Icons.Default.CheckCircle
+                AlarmStatus.EXPIRED -> Icons.Default.AccessTime
+                AlarmStatus.CANCELLED -> Icons.Default.Cancel
+            }
+            
+            Icon(
+                statusIcon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = when (currentStatus) {
+                    AlarmStatus.WAITING -> MaterialTheme.colorScheme.onPrimaryContainer
+                    AlarmStatus.ACTIVE -> MaterialTheme.colorScheme.onErrorContainer
+                    AlarmStatus.DISMISSED -> MaterialTheme.colorScheme.onSecondaryContainer
+                    AlarmStatus.EXPIRED -> MaterialTheme.colorScheme.onTertiaryContainer
+                    AlarmStatus.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+            
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = currentStatus.getDisplayMessage(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = when (currentStatus) {
+                        AlarmStatus.WAITING -> MaterialTheme.colorScheme.onPrimaryContainer
+                        AlarmStatus.ACTIVE -> MaterialTheme.colorScheme.onErrorContainer
+                        AlarmStatus.DISMISSED -> MaterialTheme.colorScheme.onSecondaryContainer
+                        AlarmStatus.EXPIRED -> MaterialTheme.colorScheme.onTertiaryContainer
+                        AlarmStatus.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+                
+                statusMessage?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = when (currentStatus) {
+                            AlarmStatus.WAITING -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            AlarmStatus.ACTIVE -> MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                            AlarmStatus.DISMISSED -> MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            AlarmStatus.EXPIRED -> MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                            AlarmStatus.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoPoint(
+    icon: ImageVector,
+    text: String,
+    color: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = color
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = color
+        )
+    }
+}
+
+@Composable
+private fun DifficultyExample(
+    difficulty: MathPuzzle.Difficulty,
+    example: String,
+    description: String
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = difficulty.name.lowercase().replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onWarningContainer
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onWarningContainer.copy(alpha = 0.7f)
+                )
+            }
+            
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                ),
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                Text(
+                    text = example,
+                    modifier = Modifier.padding(8.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onWarningContainer,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+private fun AlarmStatus.getDisplayMessage(): String {
+    return when (this) {
+        AlarmStatus.WAITING -> "Alarm scheduled and waiting"
+        AlarmStatus.ACTIVE -> "Alarm is currently active"
+        AlarmStatus.DISMISSED -> "Alarm successfully dismissed"
+        AlarmStatus.EXPIRED -> "Alarm completed naturally"
+        AlarmStatus.CANCELLED -> "Alarm was cancelled"
+    }
+}
