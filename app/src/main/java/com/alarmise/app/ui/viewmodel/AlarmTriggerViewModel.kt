@@ -74,9 +74,8 @@ class AlarmTriggerViewModel @Inject constructor(
         try {
             val activeLog = alarmRepository.getActiveLog()
             activeLog?.let {
-                alarmRepository.stopLog(
-                    id = it.id,
-                    stoppedAt = System.currentTimeMillis(),
+                alarmRepository.stopAlarmLog(
+                    logId = it.id,
                     stoppedBy = stoppedBy
                 )
             }

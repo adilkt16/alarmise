@@ -88,8 +88,8 @@ class AlarmService : Service() {
                 // Set to use alarm stream for maximum volume
                 setAudioStreamType(AudioManager.STREAM_ALARM)
                 
-                // Load default alarm sound (you can add custom sound files to res/raw)
-                setDataSource("android.resource://$packageName/${R.raw.default_alarm}")
+                // Use system alarm sound
+                setDataSource(this@AlarmService, android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI)
                 
                 isLooping = true
                 setVolume(1.0f, 1.0f)
