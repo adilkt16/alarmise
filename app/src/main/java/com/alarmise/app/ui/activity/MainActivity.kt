@@ -619,14 +619,12 @@ private fun validateAlarmTimes(startTime: LocalTime, endTime: LocalTime): String
         startTime == endTime -> "Start and end times cannot be the same"
         startTime.isAfter(endTime) -> {
             val duration = ChronoUnit.MINUTES.between(startTime, endTime.plus(1, ChronoUnit.DAYS))
-            if (duration < 5) "Alarm duration too short (minimum 5 minutes)"
-            else if (duration > 720) "Alarm duration too long (maximum 12 hours)"
+            if (duration > 720) "Alarm duration too long (maximum 12 hours)"
             else null
         }
         else -> {
             val duration = ChronoUnit.MINUTES.between(startTime, endTime)
-            if (duration < 5) "Alarm duration too short (minimum 5 minutes)"
-            else if (duration > 720) "Alarm duration too long (maximum 12 hours)"
+            if (duration > 720) "Alarm duration too long (maximum 12 hours)"
             else null
         }
     }
