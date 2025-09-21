@@ -137,6 +137,20 @@ class NotificationUtils @Inject constructor(
     }
     
     /**
+     * Create notification for foreground service with custom content
+     */
+    fun createServiceNotification(title: String, content: String): android.app.Notification {
+        return NotificationCompat.Builder(context, SERVICE_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(content)
+            .setSmallIcon(R.drawable.ic_alarm_24)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .build()
+    }
+    
+    /**
      * Show alarm notification
      */
     fun showAlarmNotification(

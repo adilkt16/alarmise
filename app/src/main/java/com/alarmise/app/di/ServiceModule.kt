@@ -2,6 +2,8 @@ package com.alarmise.app.di
 
 import android.content.Context
 import com.alarmise.app.service.AlarmScheduler
+//import com.alarmise.app.service.AlarmServiceManager
+//import com.alarmise.app.utils.BatteryOptimizationHelper
 import com.alarmise.app.utils.NotificationUtils
 import com.alarmise.app.utils.PermissionUtils
 import dagger.Module
@@ -38,4 +40,22 @@ object ServiceModule {
     ): PermissionUtils {
         return PermissionUtils(context)
     }
+    
+    /*
+    @Provides
+    @Singleton
+    fun provideAlarmServiceManager(
+        @ApplicationContext context: Context
+    ): AlarmServiceManager {
+        return AlarmServiceManager(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideBatteryOptimizationHelper(
+        @ApplicationContext context: Context
+    ): BatteryOptimizationHelper {
+        return BatteryOptimizationHelper(context)
+    }
+    */
 }

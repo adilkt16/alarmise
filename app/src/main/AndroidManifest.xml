@@ -17,6 +17,12 @@
     <!-- Permissions for background execution -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.BROADCAST_STICKY" />
+    
+    <!-- Job scheduler permission for service restart -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     
     <!-- Audio permissions -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
