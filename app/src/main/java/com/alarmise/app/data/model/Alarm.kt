@@ -13,12 +13,16 @@ data class Alarm(
     val id: Long = 0,
     val startTime: LocalTime,
     val endTime: LocalTime,
-    val isActive: Boolean = false,
+    val state: AlarmState = AlarmState.CREATED,
     val isEnabled: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val label: String = "Alarm",
     val puzzleDifficulty: MathPuzzle.Difficulty = MathPuzzle.Difficulty.MEDIUM,
     val lastTriggered: Long? = null,
+    val scheduledAt: Long? = null,
+    val dismissedAt: Long? = null,
+    val expiredAt: Long? = null,
+    val stateTransitions: List<AlarmStateTransition> = emptyList(),
     val isOneTime: Boolean = true // For future recurring alarm support
 ) : Parcelable {
     
@@ -42,7 +46,7 @@ data class Alarm(
      * This is the core logic for persistent alarm behavior
      */
     fun isCurrentlyActive(): Boolean {
-        if (!isEnabled || !isActive) return false
+        if (!isEnabled || state != AlarmState.ACTIVE) return false
         
         val now = LocalTime.now()
         
@@ -59,7 +63,7 @@ data class Alarm(
      * Check if alarm should be triggered now (within 1 minute of start time)
      */
     fun shouldTriggerNow(): Boolean {
-        if (!isEnabled) return false
+        if (!isEnabled || state != AlarmState.SCHEDULED) return false
         
         val now = LocalTime.now()
         val triggerWindow = 1 // minutes
@@ -93,6 +97,52 @@ data class Alarm(
             // Cross midnight: expired if between end and start time
             now.isAfter(endTime) && now.isBefore(startTime)
         }
+    }
+    
+    /**
+     * Check if alarm is scheduled and waiting to trigger
+     */
+    fun isScheduled(): Boolean = state == AlarmState.SCHEDULED
+    
+    /**
+     * Check if alarm is currently playing
+     */
+    fun isPlaying(): Boolean = state == AlarmState.ACTIVE
+    
+    /**
+     * Check if alarm is in a finished state
+     */
+    fun isFinished(): Boolean = state.isFinished()
+    
+    /**
+     * Get the current state description
+     */
+    fun getStateDescription(): String = state.getDescription()
+    
+    /**
+     * Create a new alarm with state transition
+     */
+    fun withStateTransition(newState: AlarmState, reason: String? = null): Alarm {
+        require(state.canTransitionTo(newState)) {
+            "Invalid state transition from $state to $newState"
+        }
+        
+        val transition = AlarmStateTransition(
+            fromState = state,
+            toState = newState,
+            reason = reason
+        )
+        
+        val updatedTransitions = stateTransitions + transition
+        
+        return copy(
+            state = newState,
+            stateTransitions = updatedTransitions,
+            lastTriggered = if (newState == AlarmState.ACTIVE) System.currentTimeMillis() else lastTriggered,
+            scheduledAt = if (newState == AlarmState.SCHEDULED) System.currentTimeMillis() else scheduledAt,
+            dismissedAt = if (newState == AlarmState.DISMISSED) System.currentTimeMillis() else dismissedAt,
+            expiredAt = if (newState == AlarmState.EXPIRED) System.currentTimeMillis() else expiredAt
+        )
     }
     
     /**
@@ -150,7 +200,7 @@ data class Alarm(
                 endTime = endTime,
                 label = label.ifBlank { "Alarm" },
                 puzzleDifficulty = puzzleDifficulty,
-                isActive = false, // Will be activated when scheduled
+                state = AlarmState.CREATED,
                 isEnabled = true
             )
             
@@ -167,7 +217,7 @@ data class Alarm(
                 endTime = now.plusMinutes((1 + durationMinutes).toLong()),
                 label = "Test Alarm",
                 puzzleDifficulty = MathPuzzle.Difficulty.EASY,
-                isActive = false,
+                state = AlarmState.CREATED,
                 isEnabled = true
             )
         }

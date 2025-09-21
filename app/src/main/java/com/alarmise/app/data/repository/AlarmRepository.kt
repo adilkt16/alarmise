@@ -4,6 +4,8 @@ import com.alarmise.app.data.database.AlarmDao
 import com.alarmise.app.data.database.AlarmLogDao
 import com.alarmise.app.data.model.Alarm
 import com.alarmise.app.data.model.AlarmLog
+import com.alarmise.app.data.model.AlarmState
+import com.alarmise.app.utils.AlarmLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -33,7 +35,7 @@ class AlarmRepository @Inject constructor(
      */
     fun getActiveAlarms(): Flow<List<Alarm>> = 
         alarmDao.getAllAlarms().map { alarms ->
-            alarms.filter { it.isActive }
+            alarms.filter { it.state == AlarmState.ACTIVE }
         }
     
     /**
@@ -42,21 +44,38 @@ class AlarmRepository @Inject constructor(
     suspend fun getAlarmById(id: Long): Alarm? = alarmDao.getAlarmById(id)
     
     /**
+     * Alternative method name for consistency with AlarmScheduler
+     */
+    suspend fun getById(id: Long): Alarm? = getAlarmById(id)
+    
+    /**
+     * Get all alarms in scheduled state (for rescheduling after boot)
+     */
+    suspend fun getAllScheduledAlarms(): List<Alarm> {
+        return alarmDao.getAlarmsByState(AlarmState.SCHEDULED)
+    }
+    
+    /**
+     * Update alarm with enhanced error handling
+     */
+    suspend fun update(alarm: Alarm): Result<Unit> = updateAlarm(alarm)
+    
+    /**
      * Get the single active alarm (core requirement: only one alarm can be active)
      */
     suspend fun getActiveAlarm(): Alarm? = alarmDao.getActiveAlarm()
     
     /**
      * Get alarms that should be playing right now
+     * Updated to work with new state system
      */
     suspend fun getCurrentlyPlayingAlarms(): List<Alarm> {
-        val allAlarms = alarmDao.getEnabledAlarms()
-        return allAlarms.map { alarms ->
-            alarms.filter { it.isCurrentlyActive() }
-        }.let { flow ->
-            // Since this is a suspend function, we need to get the current value
-            // In a real implementation, you'd collect the flow value
-            emptyList<Alarm>() // Placeholder - would need flow collection
+        return try {
+            val activeAlarms = alarmDao.getAlarmsByState(AlarmState.ACTIVE)
+            activeAlarms.filter { it.isCurrentlyActive() }
+        } catch (e: Exception) {
+            AlarmLogger.logError("Get Currently Playing Alarms", null, e)
+            emptyList()
         }
     }
     
@@ -125,28 +144,67 @@ class AlarmRepository @Inject constructor(
     }
     
     /**
-     * Deactivate all alarms (critical for single-alarm requirement)
+     * Deactivate all alarms (updated for state system)
      */
     suspend fun deactivateAllAlarms(): Result<Unit> {
         return try {
-            alarmDao.deactivateAllAlarms()
+            val activeAlarms = alarmDao.getAlarmsByState(AlarmState.ACTIVE)
+            val scheduledAlarms = alarmDao.getAlarmsByState(AlarmState.SCHEDULED)
+            
+            // Cancel all active and scheduled alarms
+            (activeAlarms + scheduledAlarms).forEach { alarm ->
+                val cancelledAlarm = alarm.withStateTransition(
+                    AlarmState.CANCELLED,
+                    "Cancelled to make room for new alarm"
+                )
+                alarmDao.updateAlarm(cancelledAlarm)
+                
+                AlarmLogger.logStateTransition(
+                    alarm.id,
+                    alarm.state,
+                    AlarmState.CANCELLED,
+                    "Bulk deactivation"
+                )
+            }
+            
             Result.success(Unit)
         } catch (e: Exception) {
+            AlarmLogger.logError("Deactivate All Alarms", null, e)
             Result.failure(e)
         }
     }
     
     /**
-     * Activate a specific alarm (and deactivate others)
+     * Activate a specific alarm (transition from SCHEDULED to ACTIVE)
      */
     suspend fun activateAlarm(id: Long): Result<Unit> {
         return try {
-            // First deactivate all alarms
-            alarmDao.deactivateAllAlarms()
-            // Then activate the specific alarm
-            alarmDao.activateAlarm(id)
+            val alarm = alarmDao.getAlarmById(id)
+            if (alarm != null) {
+                if (alarm.state != AlarmState.SCHEDULED) {
+                    AlarmLogger.logWarning("Activate Alarm", 
+                        "Alarm is not in SCHEDULED state: ${alarm.state}", id)
+                }
+                
+                val activeAlarm = alarm.withStateTransition(
+                    AlarmState.ACTIVE,
+                    "Alarm triggered and activated"
+                )
+                alarmDao.updateAlarm(activeAlarm)
+                
+                AlarmLogger.logStateTransition(
+                    alarm.id,
+                    alarm.state,
+                    AlarmState.ACTIVE,
+                    "System activated alarm"
+                )
+            } else {
+                return Result.failure(IllegalArgumentException("Alarm not found: $id"))
+            }
+            
             Result.success(Unit)
         } catch (e: Exception) {
+            AlarmLogger.logError("Activate Alarm", id, e)
             Result.failure(e)
         }
     }
@@ -164,20 +222,30 @@ class AlarmRepository @Inject constructor(
     }
     
     /**
-     * Mark alarm as triggered (update last triggered time)
+     * Mark alarm as triggered (updated for state system)
      */
     suspend fun markAlarmTriggered(id: Long): Result<Unit> {
         return try {
             val alarm = alarmDao.getAlarmById(id)
             if (alarm != null) {
-                val updatedAlarm = alarm.copy(
-                    lastTriggered = System.currentTimeMillis(),
-                    isActive = true
+                val triggeredAlarm = alarm.withStateTransition(
+                    AlarmState.ACTIVE,
+                    "Alarm triggered by system at ${System.currentTimeMillis()}"
                 )
-                alarmDao.updateAlarm(updatedAlarm)
+                alarmDao.updateAlarm(triggeredAlarm)
+                
+                AlarmLogger.logStateTransition(
+                    alarm.id,
+                    alarm.state,
+                    AlarmState.ACTIVE,
+                    "System triggered alarm"
+                )
+            } else {
+                return Result.failure(IllegalArgumentException("Alarm not found: $id"))
             }
             Result.success(Unit)
         } catch (e: Exception) {
+            AlarmLogger.logError("Mark Alarm Triggered", id, e)
             Result.failure(e)
         }
     }
