@@ -64,7 +64,7 @@ class AlarmService : Service() {
         val alarmId = intent?.getLongExtra(EXTRA_ALARM_ID, -1) ?: -1
         
         AlarmLogger.logSystemEvent("Alarm Service Command", mapOf(
-            "action" to action,
+            "action" to (action ?: "null"),
             "alarmId" to alarmId,
             "startId" to startId,
             "currentlyPlaying" to isAlarmPlaying
@@ -498,7 +498,7 @@ class AlarmService : Service() {
         AlarmLogger.logSystemEvent("Task Removed", mapOf(
             "currentAlarmId" to currentAlarmId,
             "isAlarmPlaying" to isAlarmPlaying,
-            "rootIntent" to rootIntent?.toString()
+            "rootIntent" to (rootIntent?.toString() ?: "null")
         ))
         
         // If we have an active alarm, restart the service

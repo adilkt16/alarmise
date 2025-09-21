@@ -3,8 +3,13 @@ package com.alarmise.app.ui.components
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
+        AlarmStatus.WAITING -> Icons.Default.Schedule to 32.dp
+        AlarmStatus.ACTIVE -> Icons.Default.VolumeOff to 32.dp
+        AlarmStatus.DISMISSED -> Icons.Default.Check to 32.dp
+        AlarmStatus.EXPIRED -> Icons.Default.Schedule to 32.dp
+        AlarmStatus.CANCELLED -> Icons.Default.Close to 32.dpt androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -117,7 +122,7 @@ fun EnhancedAlarmStatusCard(
                                     }
                                 ) {
                                     Icon(
-                                        Icons.Default.Snooze,
+                                        Icons.Default.Stop,
                                         contentDescription = "Snooze",
                                         tint = getStatusColor(status)
                                     )
@@ -177,7 +182,7 @@ fun EnhancedAlarmStatusCard(
 @Composable
 private fun StatusIcon(status: AlarmStatus) {
     val (icon, size) = when (status) {
-        AlarmStatus.WAITING -> Icons.Default.Schedule to 32.dp
+        AlarmStatus.WAITING -> Icons.Default.AccessTime to 32.dp
         AlarmStatus.ACTIVE -> Icons.Default.VolumeUp to 32.dp
         AlarmStatus.DISMISSED -> Icons.Default.CheckCircle to 32.dp
         AlarmStatus.EXPIRED -> Icons.Default.AccessTime to 32.dp
@@ -337,7 +342,7 @@ private fun ActiveAlarmProgress(
                 }
                 
                 Icon(
-                    Icons.Default.VolumeUp,
+                    Icons.Default.VolumeOff,
                     contentDescription = "Currently playing",
                     modifier = Modifier.size(24.dp),
                     tint = statusColor
@@ -388,7 +393,7 @@ private fun AlarmSummary(
 // Helper functions
 private fun determineAlarmStatus(alarm: Alarm, currentTime: LocalTime): AlarmStatus {
     return when {
-        !alarm.isActive -> AlarmStatus.CANCELLED
+        !alarm.isEnabled -> AlarmStatus.CANCELLED
         currentTime.isBefore(alarm.startTime) -> AlarmStatus.WAITING
         currentTime.isAfter(alarm.endTime) && !alarm.startTime.isAfter(alarm.endTime) -> AlarmStatus.EXPIRED
         currentTime.isAfter(alarm.startTime) || (alarm.startTime.isAfter(alarm.endTime) && currentTime.isBefore(alarm.endTime)) -> AlarmStatus.ACTIVE

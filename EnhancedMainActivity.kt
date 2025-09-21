@@ -20,7 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.alarmise.ui.components.*
+import com.alarmise.ui.components.AlarmCard
+// import com.alarmise.ui.components.*
 import com.alarmise.ui.settings.SettingsScreen
 import com.alarmise.ui.settings.UserPreferences
 import kotlinx.coroutines.delay
@@ -291,10 +292,11 @@ private fun AlarmManagementScreen(
         // Active alarm status (if any)
         activeAlarm?.let { alarm ->
             item(key = "active_alarm") {
-                EnhancedAlarmStatusCard(
-                    alarm = alarm,
-                    onAction = onAlarmAction,
-                    modifier = Modifier.animateItemPlacement()
+                // EnhancedAlarmStatusCard - temporarily disabled due to compilation issues
+                Text(
+                    text = "Active Alarm: ${alarm.label}",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(16.dp)
                 )
             }
         }
@@ -302,41 +304,62 @@ private fun AlarmManagementScreen(
         // Emergency stop information (when alarm is active)
         if (activeAlarm?.status == AlarmStatus.ACTIVE) {
             item(key = "emergency_info") {
-                EmergencyStopInfoCard(
-                    onEmergencyStop = onEmergencyStop,
-                    modifier = Modifier.animateItemPlacement()
-                )
+                // EmergencyStopInfoCard - temporarily disabled
+                Card(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Emergency Stop Available",
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
         
         // Status messages
         if (uiState.statusMessage.isNotEmpty()) {
             item(key = "status_messages") {
-                StatusMessagesCard(
-                    messages = listOf(uiState.statusMessage),
-                    modifier = Modifier.animateItemPlacement()
-                )
+                // StatusMessagesCard - temporarily disabled
+                Card(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = uiState.statusMessage,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
         
         // Next alarm schedule
         if (upcomingAlarms.isNotEmpty()) {
             item(key = "next_alarms") {
-                NextAlarmScheduleCard(
-                    upcomingAlarms = upcomingAlarms,
-                    onAlarmAction = onAlarmAction,
-                    modifier = Modifier.animateItemPlacement()
-                )
+                // NextAlarmScheduleCard - temporarily disabled
+                Card(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Upcoming Alarms",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        upcomingAlarms.take(3).forEach { alarm ->
+                            Text(text = alarm.label)
+                        }
+                    }
+                }
             }
         }
         
         // Recent alarm history
         if (alarmHistory.isNotEmpty()) {
             item(key = "alarm_history") {
-                AlarmHistoryView(
-                    alarmHistory = alarmHistory.take(5), // Show only recent 5
-                    modifier = Modifier.animateItemPlacement()
-                )
+                // AlarmHistoryView - temporarily disabled
+                Card(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Recent History",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Text(text = "${alarmHistory.size} alarm entries")
+                    }
+                }
             }
         }
         

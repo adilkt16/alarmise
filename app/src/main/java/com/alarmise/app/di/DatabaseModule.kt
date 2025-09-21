@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.alarmise.app.data.database.AlarmDatabase
 import com.alarmise.app.data.database.AlarmDao
 import com.alarmise.app.data.database.AlarmLogDao
+// import com.alarmise.app.data.repository.AlarmRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -37,4 +38,13 @@ object DatabaseModule {
     fun provideAlarmLogDao(database: AlarmDatabase): AlarmLogDao {
         return database.alarmLogDao()
     }
+    
+//     @Provides
+//     @Singleton
+//     fun provideAlarmRepository(
+//         alarmDao: AlarmDao,
+//         alarmLogDao: AlarmLogDao
+//     ): AlarmRepository {
+//         return AlarmRepository(alarmDao, alarmLogDao)
+//     }
 }

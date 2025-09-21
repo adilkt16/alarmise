@@ -3,7 +3,11 @@ package com.alarmise.app.ui.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.mat                AlarmStatus.WAITING -> Icons.Default.Schedule
+                AlarmStatus.ACTIVE -> Icons.Default.VolumeOff
+                AlarmStatus.DISMISSED -> Icons.Default.Check
+                AlarmStatus.EXPIRED -> Icons.Default.Schedule
+                AlarmStatus.CANCELLED -> Icons.Default.Close.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,7 +33,7 @@ fun EmergencyStopInfoCard(
             .fillMaxWidth()
             .semantics { contentDescription = "Emergency stop information and math puzzle explanation" },
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.warningContainer
+            containerColor = MaterialTheme.colorScheme.errorContainer
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(12.dp),
@@ -53,7 +57,7 @@ fun EmergencyStopInfoCard(
                         Icons.Default.Warning,
                         contentDescription = "Important information",
                         modifier = Modifier.size(28.dp),
-                        tint = MaterialTheme.colorScheme.onWarningContainer
+                        tint = MaterialTheme.colorScheme.onErrorContainer
                     )
                     
                     Column {
@@ -61,20 +65,20 @@ fun EmergencyStopInfoCard(
                             text = "How to Stop Alarms",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onWarningContainer
+                            color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Text(
                             text = "Math puzzles only - no snooze!",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onWarningContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
                         )
                     }
                 }
                 
                 Icon(
-                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = MaterialTheme.colorScheme.onWarningContainer
+                    tint = MaterialTheme.colorScheme.onErrorContainer
                 )
             }
             
@@ -83,19 +87,19 @@ fun EmergencyStopInfoCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 InfoPoint(
-                    icon = Icons.Default.Calculate,
+                    icon = Icons.Default.Games,
                     text = "Solve math puzzle to stop alarm",
-                    color = MaterialTheme.colorScheme.onWarningContainer
+                    color = MaterialTheme.colorScheme.onErrorContainer
                 )
                 InfoPoint(
                     icon = Icons.Default.Block,
                     text = "No snooze or easy dismiss options",
-                    color = MaterialTheme.colorScheme.onWarningContainer
+                    color = MaterialTheme.colorScheme.onErrorContainer
                 )
                 InfoPoint(
-                    icon = Icons.Default.AccessTime,
+                    icon = Icons.Default.Schedule,
                     text = "Alarm stops automatically at end time",
-                    color = MaterialTheme.colorScheme.onWarningContainer
+                    color = MaterialTheme.colorScheme.onErrorContainer
                 )
             }
             
@@ -105,7 +109,7 @@ fun EmergencyStopInfoCard(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Divider(
-                        color = MaterialTheme.colorScheme.onWarningContainer.copy(alpha = 0.3f)
+                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.3f)
                     )
                     
                     // Difficulty examples
@@ -113,7 +117,7 @@ fun EmergencyStopInfoCard(
                         text = "Math Puzzle Examples",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onWarningContainer
+                        color = MaterialTheme.colorScheme.onErrorContainer
                     )
                     
                     Column(
@@ -137,7 +141,7 @@ fun EmergencyStopInfoCard(
                     }
                     
                     Divider(
-                        color = MaterialTheme.colorScheme.onWarningContainer.copy(alpha = 0.3f)
+                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.3f)
                     )
                     
                     // Emergency information
@@ -156,7 +160,7 @@ fun EmergencyStopInfoCard(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.EmergencyShare,
+                                    Icons.Default.Share,
                                     contentDescription = "Emergency",
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.onErrorContainer
@@ -316,12 +320,12 @@ private fun DifficultyExample(
                     text = difficulty.name.lowercase().replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onWarningContainer
+                    color = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onWarningContainer.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
                 )
             }
             
@@ -336,7 +340,7 @@ private fun DifficultyExample(
                     modifier = Modifier.padding(8.dp),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onWarningContainer,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
                     textAlign = TextAlign.Center
                 )
             }

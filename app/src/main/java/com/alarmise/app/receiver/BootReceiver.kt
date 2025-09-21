@@ -60,7 +60,7 @@ class BootReceiver : BroadcastReceiver() {
                         handlePackageReplaced(context, pendingResult)
                     } else {
                         AlarmLogger.logDebug("Package Replaced", mapOf(
-                            "packageName" to packageName,
+                            "packageName" to (packageName ?: "unknown"),
                             "reason" to "Not our package, ignoring"
                         ))
                         pendingResult.finish()
@@ -171,7 +171,7 @@ class BootReceiver : BroadcastReceiver() {
         } catch (e: Exception) {
             AlarmLogger.logError("System State Validation", null, e)
             mapOf(
-                "error" to e.message,
+                "error" to (e.message ?: "Unknown error"),
                 "timestamp" to System.currentTimeMillis()
             )
         }
