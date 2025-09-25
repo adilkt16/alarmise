@@ -1,6 +1,8 @@
 package com.alarmise.app.di
 
 import android.content.Context
+import com.alarmise.app.audio.AudioHardwareManager
+import com.alarmise.app.audio.EnhancedAudioManager
 import com.alarmise.app.service.AlarmScheduler
 //import com.alarmise.app.service.AlarmServiceManager
 //import com.alarmise.app.utils.BatteryOptimizationHelper
@@ -39,6 +41,22 @@ object ServiceModule {
         @ApplicationContext context: Context
     ): PermissionUtils {
         return PermissionUtils(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideEnhancedAudioManager(
+        @ApplicationContext context: Context
+    ): EnhancedAudioManager {
+        return EnhancedAudioManager(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideAudioHardwareManager(
+        @ApplicationContext context: Context
+    ): AudioHardwareManager {
+        return AudioHardwareManager(context)
     }
     
     /*

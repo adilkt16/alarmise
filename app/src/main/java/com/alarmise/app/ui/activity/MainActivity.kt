@@ -59,6 +59,7 @@ fun AlarmiseMainScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val alarms by viewModel.alarms.collectAsState(initial = emptyList())
+    val activeAlarm by viewModel.activeAlarm.collectAsState()
     val context = LocalContext.current
     
     // Time picker state
@@ -130,11 +131,39 @@ fun AlarmiseMainScreen(
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // Active Alarm Status Card
+            // Active Alarm Status Card (use both sources for debugging)
             ActiveAlarmCard(
-                activeAlarm = uiState.activeAlarm,
+                activeAlarm = activeAlarm ?: uiState.activeAlarm,
                 onCancelAlarm = { alarm -> viewModel.cancelAlarm(alarm.id) }
             )
+            
+            // Debug: Show all alarms
+            if (alarms.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Debug: All Alarms (${alarms.size})",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        alarms.forEach { alarm ->
+                            Text(
+                                text = "ID: ${alarm.id} | ${alarm.label} | ${formatTime(alarm.startTime)}-${formatTime(alarm.endTime)} | State: ${alarm.state.name}",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
             
             // Main Alarm Configuration Card
             AlarmConfigurationCard(
@@ -270,6 +299,7 @@ fun ActiveAlarmCard(
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
+                    // Alarm Times
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -291,6 +321,34 @@ fun ActiveAlarmCard(
                             text = alarm.getDurationString(),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Alarm Status and Details
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Status: ${alarm.state.name}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                text = "ID: ${alarm.id}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        
+                        Text(
+                            text = "Puzzle: ${alarm.puzzleDifficulty.name}",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
@@ -632,7 +690,10 @@ private fun validateAlarmTimes(startTime: LocalTime, endTime: LocalTime): String
 
 private fun calculateDurationString(startTime: LocalTime, endTime: LocalTime): String {
     val duration = if (startTime.isAfter(endTime)) {
-        ChronoUnit.MINUTES.between(startTime, endTime.plus(1, ChronoUnit.DAYS))
+        // Crossing midnight: calculate from start to midnight + from midnight to end
+        val toMidnight = ChronoUnit.MINUTES.between(startTime, LocalTime.MAX)
+        val fromMidnight = ChronoUnit.MINUTES.between(LocalTime.MIN, endTime)
+        toMidnight + fromMidnight + 1 // +1 for the minute at midnight
     } else {
         ChronoUnit.MINUTES.between(startTime, endTime)
     }

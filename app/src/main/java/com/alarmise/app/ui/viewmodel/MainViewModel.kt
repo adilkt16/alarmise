@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.alarmise.app.data.model.Alarm
 import com.alarmise.app.data.model.MathPuzzle
 import com.alarmise.app.data.repository.AlarmRepository
+import com.alarmise.app.service.AlarmScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,8 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val alarmRepository: AlarmRepository
-    // private val alarmScheduler: AlarmScheduler // Will be injected when created
+    private val alarmRepository: AlarmRepository,
+    private val alarmScheduler: AlarmScheduler
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(MainUiState())
@@ -111,8 +112,28 @@ class MainViewModel @Inject constructor(
                         // Activate the alarm
                         alarmRepository.activateAlarm(alarmId)
                         
-                        // Schedule with system AlarmManager
-                        // scheduleAlarmWithSystem(alarmId, startTime, endTime)
+                        // Get the created alarm and schedule with system AlarmManager
+                        viewModelScope.launch {
+                            try {
+                                val createdAlarm = alarmRepository.getById(alarmId)
+                                if (createdAlarm != null) {
+                                    val scheduleResult = alarmScheduler.scheduleAlarm(createdAlarm)
+                                    if (scheduleResult.isFailure) {
+                                        _uiState.value = _uiState.value.copy(
+                                            isLoading = false,
+                                            error = "Alarm created but failed to schedule: ${scheduleResult.exceptionOrNull()?.message}"
+                                        )
+                                        return@launch
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    error = "Alarm created but failed to schedule: ${e.message}"
+                                )
+                                return@launch
+                            }
+                        }
                         
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,

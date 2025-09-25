@@ -13,6 +13,8 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.alarmise.app.R
+import com.alarmise.app.audio.AudioHardwareManager
+import com.alarmise.app.audio.EnhancedAudioManager
 import com.alarmise.app.data.model.AlarmState
 import com.alarmise.app.data.repository.AlarmRepository
 import com.alarmise.app.ui.activity.AlarmTriggerActivity
@@ -48,6 +50,12 @@ class AlarmService : Service() {
     @Inject
     lateinit var notificationUtils: NotificationUtils
     
+    @Inject
+    lateinit var enhancedAudioManager: EnhancedAudioManager
+    
+    @Inject
+    lateinit var audioHardwareManager: AudioHardwareManager
+    
     // Service binding for UI communication
     private val binder = AlarmServiceBinder()
     private var isServiceBound = false
@@ -55,8 +63,7 @@ class AlarmService : Service() {
     // Coroutine scope for service operations
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
-    // Media playback components
-    private var mediaPlayer: MediaPlayer? = null
+    // Service state (audio now handled by EnhancedAudioManager)
     private var wakeLock: PowerManager.WakeLock? = null
     private var currentAlarmId: Long = -1
     private var isAlarmPlaying = false
@@ -66,6 +73,80 @@ class AlarmService : Service() {
     private var alarmStartTime: ZonedDateTime? = null
     private var alarmEndTime: ZonedDateTime? = null
     private var alarmLabel: String = ""
+    
+    // Audio hardware event handling
+    private val audioHardwareCallback = object : AudioHardwareManager.AudioHardwareCallback {
+        override fun onHeadphonesDisconnected() {
+            AlarmLogger.logWarning("Audio Hardware", "Headphones disconnected - ensuring alarm continues on speaker", currentAlarmId)
+            // CRITICAL: Alarm must continue playing on speaker per requirements
+            if (isAlarmPlaying) {
+                audioHardwareManager.forceAudioToSpeaker()
+                // Audio system will handle the transition automatically
+                AlarmLogger.logSystemEvent("Alarm Continuity", mapOf(
+                    "event" to "headphones_disconnect",
+                    "action" to "force_speaker",
+                    "alarmId" to currentAlarmId
+                ))
+            }
+        }
+        
+        override fun onHeadphonesConnected() {
+            AlarmLogger.logSystemEvent("Audio Hardware", mapOf(
+                "event" to "headphones_connected",
+                "alarmId" to currentAlarmId
+            ))
+            // Restore normal routing when headphones connect
+            if (isAlarmPlaying) {
+                audioHardwareManager.restoreNormalAudioRouting()
+            }
+        }
+        
+        override fun onBluetoothDisconnected() {
+            AlarmLogger.logWarning("Audio Hardware", "Bluetooth audio disconnected - ensuring alarm continues", currentAlarmId)
+            // CRITICAL: Alarm must continue playing 
+            if (isAlarmPlaying) {
+                audioHardwareManager.forceAudioToSpeaker()
+                AlarmLogger.logSystemEvent("Alarm Continuity", mapOf(
+                    "event" to "bluetooth_disconnect",
+                    "action" to "force_speaker",
+                    "alarmId" to currentAlarmId
+                ))
+            }
+        }
+        
+        override fun onBluetoothConnected() {
+            AlarmLogger.logSystemEvent("Audio Hardware", mapOf(
+                "event" to "bluetooth_connected",
+                "alarmId" to currentAlarmId
+            ))
+            if (isAlarmPlaying) {
+                audioHardwareManager.restoreNormalAudioRouting()
+            }
+        }
+        
+        override fun onAudioRoutingChanged(newRoute: String) {
+            AlarmLogger.logSystemEvent("Audio Hardware", mapOf(
+                "event" to "routing_changed",
+                "newRoute" to newRoute,
+                "alarmId" to currentAlarmId
+            ))
+        }
+        
+        override fun onHardwareAudioFailure(reason: String) {
+            AlarmLogger.logError("Audio Hardware", currentAlarmId, Exception("Hardware audio failure: $reason"))
+            // Critical: Attempt to recover audio playback
+            if (isAlarmPlaying) {
+                serviceScope.launch {
+                    delay(1000) // Brief delay for hardware to stabilize
+                    try {
+                        enhancedAudioManager.startAlarm(currentAlarmId, enableFadeIn = false)
+                    } catch (e: Exception) {
+                        AlarmLogger.logError("Audio Recovery", currentAlarmId, e)
+                    }
+                }
+            }
+        }
+    }
     
     companion object {
         // Service actions
@@ -126,6 +207,9 @@ class AlarmService : Service() {
             startForegroundService()
         }
         
+        // Register audio hardware event monitoring
+        audioHardwareManager.registerHardwareEvents(audioHardwareCallback)
+        
         acquireWakeLock()
         // TODO: Re-enable broadcastServiceState when communication components are restored
         // broadcastServiceState()
@@ -134,6 +218,15 @@ class AlarmService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         val alarmId = intent?.getLongExtra(EXTRA_ALARM_ID, -1) ?: -1
+        
+        // Add extensive debug logging
+        android.util.Log.d("AlarmService", "🎵 AlarmService.onStartCommand() called!")
+        android.util.Log.d("AlarmService", "🎵 Intent action: $action")
+        android.util.Log.d("AlarmService", "🎵 Alarm ID: $alarmId")
+        android.util.Log.d("AlarmService", "🎵 Start ID: $startId")
+        android.util.Log.d("AlarmService", "🎵 Intent extras: ${intent?.extras}")
+        android.util.Log.d("AlarmService", "🎵 Currently playing: $isAlarmPlaying")
+        android.util.Log.d("AlarmService", "🎵 Service started: $isServiceStarted")
         
         AlarmLogger.logSystemEvent("Alarm Service Command", mapOf(
             "action" to (action ?: "null"),
@@ -145,28 +238,36 @@ class AlarmService : Service() {
         
         // Ensure foreground service is running
         if (!isServiceStarted) {
+            android.util.Log.d("AlarmService", "🎵 Starting foreground service...")
             startForegroundService()
         }
         
         when (action) {
             ACTION_START_ALARM -> {
+                android.util.Log.d("AlarmService", "🎵 Processing ACTION_START_ALARM")
                 if (alarmId != -1L) {
+                    android.util.Log.d("AlarmService", "🎵 Valid alarm ID received, starting alarm...")
                     startAlarm(alarmId, intent)
                 } else {
+                    android.util.Log.e("AlarmService", "🎵 Invalid alarm ID received: $alarmId")
                     AlarmLogger.logWarning("Alarm Service", "Start alarm requested with invalid ID", alarmId)
                 }
             }
             ACTION_STOP_ALARM -> {
+                android.util.Log.d("AlarmService", "🎵 Processing ACTION_STOP_ALARM")
                 stopAlarm(alarmId, AlarmState.EXPIRED, "Auto-stopped by system")
             }
             ACTION_DISMISS_ALARM -> {
+                android.util.Log.d("AlarmService", "🎵 Processing ACTION_DISMISS_ALARM")
                 stopAlarm(alarmId, AlarmState.DISMISSED, "Dismissed by user solving puzzle")
             }
             ACTION_FOREGROUND_START -> {
+                android.util.Log.d("AlarmService", "🎵 Processing ACTION_FOREGROUND_START")
                 // Just maintain foreground state - no alarm action needed
                 AlarmLogger.logSystemEvent("Foreground Service", mapOf("reason" to "explicit_start"))
             }
             else -> {
+                android.util.Log.e("AlarmService", "🎵 Unknown action or null action: $action")
                 // Handle service restart scenarios
                 // TODO: Re-enable handleServiceRestart when enhanced service components are restored
                 AlarmLogger.logSystemEvent("Service Restart", mapOf("alarmId" to alarmId, "startId" to startId))
@@ -176,6 +277,7 @@ class AlarmService : Service() {
         // TODO: Re-enable broadcastServiceState when communication components are restored
         // broadcastServiceState()
         
+        android.util.Log.d("AlarmService", "🎵 Returning START_STICKY")
         // Return START_STICKY for automatic restart on system kill
         // This is CRITICAL for persistent alarm playback
         return START_STICKY
@@ -218,8 +320,12 @@ class AlarmService : Service() {
      * Start alarm playback with comprehensive state management and persistence
      */
     private fun startAlarm(alarmId: Long, intent: Intent? = null) {
+        android.util.Log.d("AlarmService", "🎵 startAlarm() called with ID: $alarmId")
+        android.util.Log.d("AlarmService", "🎵 Intent extras in startAlarm: ${intent?.extras}")
+        
         serviceScope.launch {
             try {
+                android.util.Log.d("AlarmService", "🎵 Inside startAlarm coroutine")
                 AlarmLogger.logSessionStart("Start Alarm $alarmId")
                 
                 // Extract alarm details from intent if available (for restart scenarios)
@@ -227,9 +333,15 @@ class AlarmService : Service() {
                 val startTimeStr = intent?.getStringExtra(EXTRA_START_TIME)
                 val endTimeStr = intent?.getStringExtra(EXTRA_END_TIME)
                 
+                android.util.Log.d("AlarmService", "🎵 Extracted label: '$alarmLabel'")
+                
                 // Get alarm from database
+                android.util.Log.d("AlarmService", "🎵 Loading alarm from database...")
                 val alarm = alarmRepository.getById(alarmId)
+                android.util.Log.d("AlarmService", "🎵 Alarm from database: ${alarm?.let { "${it.label} at ${it.startTime}" } ?: "null"}")
+                
                 if (alarm == null && alarmLabel.isEmpty()) {
+                    android.util.Log.e("AlarmService", "🎵 ERROR: Alarm not found and no cached data!")
                     AlarmLogger.logError("Start Alarm", alarmId, 
                         IllegalStateException("Alarm not found in database and no cached data"))
                     stopSelf()
@@ -238,29 +350,34 @@ class AlarmService : Service() {
                 
                 // Use cached data if available, otherwise database data
                 if (alarm != null) {
+                    android.util.Log.d("AlarmService", "🎵 Using alarm from database")
                     alarmLabel = alarm.label
                     // Convert LocalTime to ZonedDateTime for today
                     val today = ZonedDateTime.now().toLocalDate()
                     alarmStartTime = ZonedDateTime.of(today, alarm.startTime, ZonedDateTime.now().zone)
                     alarmEndTime = ZonedDateTime.of(today, alarm.endTime, ZonedDateTime.now().zone)
                 } else if (startTimeStr != null && endTimeStr != null) {
+                    android.util.Log.d("AlarmService", "🎵 Using cached data from intent")
                     // Use cached data from intent (restart scenario)
                     try {
                         alarmStartTime = ZonedDateTime.parse(startTimeStr)
                         alarmEndTime = ZonedDateTime.parse(endTimeStr)
                     } catch (e: Exception) {
+                        android.util.Log.e("AlarmService", "🎵 Error parsing cached times", e)
                         AlarmLogger.logError("Parse Cached Times", alarmId, e)
                     }
                 }
                 
                 // Validate alarm state (if available)
                 if (alarm != null && alarm.state != AlarmState.SCHEDULED && alarm.state != AlarmState.ACTIVE) {
+                    android.util.Log.w("AlarmService", "🎵 Warning: Alarm state is ${alarm.state}, not SCHEDULED/ACTIVE")
                     AlarmLogger.logWarning("Start Alarm", 
                         "Alarm is not in expected state: ${alarm.state}", alarmId)
                 }
                 
                 // Check if alarm should actually be playing now
                 if (alarm?.shouldTriggerNow() == false && alarm.isCurrentlyActive() == false) {
+                    android.util.Log.w("AlarmService", "🎵 Warning: Alarm triggered outside expected time window")
                     AlarmLogger.logWarning("Start Alarm", 
                         "Alarm triggered outside expected time window", alarmId)
                     // Continue anyway - might be legitimate restart
@@ -268,6 +385,7 @@ class AlarmService : Service() {
                 
                 // Update alarm state to ACTIVE (if database available)
                 if (alarm != null) {
+                    android.util.Log.d("AlarmService", "🎵 Updating alarm state to ACTIVE...")
                     val activeAlarm = alarm.withStateTransition(
                         AlarmState.ACTIVE, 
                         "Alarm triggered at ${ZonedDateTime.now()}"
@@ -275,8 +393,11 @@ class AlarmService : Service() {
                     
                     val updateResult = alarmRepository.update(activeAlarm)
                     if (updateResult.isFailure) {
+                        android.util.Log.e("AlarmService", "🎵 Error updating alarm state", updateResult.exceptionOrNull())
                         AlarmLogger.logError("Start Alarm State Update", alarmId, 
                             updateResult.exceptionOrNull() ?: Exception("Database update failed"))
+                    } else {
+                        android.util.Log.d("AlarmService", "🎵 Successfully updated alarm state to ACTIVE")
                     }
                 }
                 
@@ -284,15 +405,23 @@ class AlarmService : Service() {
                 currentAlarmId = alarmId
                 isAlarmPlaying = true
                 
+                android.util.Log.d("AlarmService", "🎵 Set currentAlarmId=$currentAlarmId, isAlarmPlaying=$isAlarmPlaying")
+                
                 // Update foreground notification with alarm details
+                android.util.Log.d("AlarmService", "🎵 Updating foreground service notification...")
                 startForegroundService()
                 
-                // Start alarm sound
-                startAlarmSound()
+                // Start alarm sound with enhanced audio system
+                android.util.Log.d("AlarmService", "🎵 Starting enhanced audio manager...")
+                enhancedAudioManager.startAlarm(currentAlarmId, enableFadeIn = true)
+                android.util.Log.d("AlarmService", "🎵 Enhanced audio manager started!")
                 
                 // Launch alarm trigger activity
                 if (alarm != null) {
+                    android.util.Log.d("AlarmService", "🎵 Launching alarm trigger activity...")
                     launchAlarmTriggerActivity(alarm)
+                } else {
+                    android.util.Log.w("AlarmService", "🎵 Skipping alarm trigger activity - no alarm object")
                 }
                 
                 // Broadcast alarm started
@@ -340,8 +469,8 @@ class AlarmService : Service() {
                     AlarmLogger.logWarning("Stop Alarm", "Alarm not found in database", alarmId)
                 }
                 
-                // Stop alarm sound
-                stopAlarmSound()
+                // Stop alarm sound with enhanced audio system
+                enhancedAudioManager.stopAlarm()
                 
                 // Stop foreground and remove notification
                 stopForeground(true)
@@ -447,138 +576,6 @@ class AlarmService : Service() {
     
     
     /**
-     * Start alarm sound with enhanced error handling and fallbacks
-     */
-    private fun startAlarmSound() {
-        try {
-            // Stop any existing media player
-            stopAlarmSound()
-            
-            mediaPlayer = MediaPlayer().apply {
-                // Set audio attributes for alarm stream
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
-                        .build()
-                )
-                
-                // Set to use alarm stream for maximum volume
-                setAudioStreamType(AudioManager.STREAM_ALARM)
-                
-                // Try to use system alarm sound
-                try {
-                    setDataSource(
-                        this@AlarmService,
-                        android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI
-                    )
-                } catch (e: Exception) {
-                    AlarmLogger.logWarning("Alarm Sound", "Failed to set system alarm sound, using fallback")
-                    // Fallback to notification sound
-                    setDataSource(
-                        this@AlarmService,
-                        android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
-                    )
-                }
-                
-                // Configure for continuous playback (critical requirement)
-                isLooping = true
-                setVolume(1.0f, 1.0f)
-                
-                // Set completion listener for error handling
-                setOnCompletionListener { mp ->
-                    AlarmLogger.logWarning("Alarm Sound", "Media player completed unexpectedly")
-                    // Restart if it stops unexpectedly
-                    if (isAlarmPlaying) {
-                        startAlarmSound()
-                    }
-                }
-                
-                setOnErrorListener { mp, what, extra ->
-                    AlarmLogger.logError("Alarm Sound", currentAlarmId, 
-                        Exception("MediaPlayer error: what=$what, extra=$extra"))
-                    
-                    // Try to restart
-                    if (isAlarmPlaying) {
-                        startAlarmSound()
-                    }
-                    true // Return true to indicate we handled the error
-                }
-                
-                prepare()
-                start()
-            }
-            
-            AlarmLogger.logDebug("Start Alarm Sound", mapOf(
-                "alarmId" to currentAlarmId,
-                "isLooping" to true,
-                "volume" to 1.0f
-            ))
-            
-        } catch (e: Exception) {
-            AlarmLogger.logError("Start Alarm Sound", currentAlarmId, e)
-            
-            // Try fallback approach
-            try {
-                startFallbackAlarmSound()
-            } catch (fallbackError: Exception) {
-                AlarmLogger.logError("Fallback Alarm Sound", currentAlarmId, fallbackError)
-            }
-        }
-    }
-    
-    /**
-     * Fallback alarm sound using ToneGenerator
-     */
-    private fun startFallbackAlarmSound() {
-        try {
-            // Use ToneGenerator as last resort
-            val toneGenerator = android.media.ToneGenerator(
-                AudioManager.STREAM_ALARM,
-                android.media.ToneGenerator.MAX_VOLUME
-            )
-            
-            // Play a repeating tone
-            serviceScope.launch {
-                while (isAlarmPlaying) {
-                    toneGenerator.startTone(android.media.ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 1000)
-                    kotlinx.coroutines.delay(1500)
-                }
-                toneGenerator.release()
-            }
-            
-            AlarmLogger.logWarning("Fallback Alarm Sound", "Using ToneGenerator fallback", currentAlarmId)
-            
-        } catch (e: Exception) {
-            AlarmLogger.logError("Fallback Alarm Sound", currentAlarmId, e)
-        }
-    }
-    
-    /**
-     * Stop alarm sound with proper cleanup
-     */
-    private fun stopAlarmSound() {
-        try {
-            mediaPlayer?.let { mp ->
-                if (mp.isPlaying) {
-                    mp.stop()
-                }
-                mp.release()
-                
-                AlarmLogger.logDebug("Stop Alarm Sound", mapOf(
-                    "alarmId" to currentAlarmId,
-                    "wasPlaying" to mp.isPlaying
-                ))
-            }
-        } catch (e: Exception) {
-            AlarmLogger.logError("Stop Alarm Sound", currentAlarmId, e)
-        } finally {
-            mediaPlayer = null
-        }
-    }
-    
-    /**
      * Acquire wake lock to prevent device sleep
      */
     private fun acquireWakeLock() {
@@ -666,11 +663,11 @@ class AlarmService : Service() {
      * Get current service state for debugging
      */
     fun getServiceState(): Map<String, Any> {
+        val audioState = enhancedAudioManager.getAudioState()
         return mapOf(
             "currentAlarmId" to currentAlarmId,
             "isAlarmPlaying" to isAlarmPlaying,
-            "hasMediaPlayer" to (mediaPlayer != null),
-            "mediaPlayerPlaying" to (mediaPlayer?.isPlaying ?: false),
+            "audioManagerState" to audioState,
             "hasWakeLock" to (wakeLock != null),
             "wakeLockHeld" to (wakeLock?.isHeld ?: false),
             "serviceStarted" to true
@@ -682,8 +679,14 @@ class AlarmService : Service() {
      */
     private fun performCleanup() {
         try {
-            // Stop alarm sound
-            stopAlarmSound()
+            // Stop alarm sound with enhanced audio system
+            enhancedAudioManager.stopAlarm()
+            
+            // Unregister audio hardware events
+            audioHardwareManager.unregisterHardwareEvents()
+            
+            // Cleanup enhanced audio manager
+            enhancedAudioManager.cleanup()
             
             // Release wake lock
             releaseWakeLock()

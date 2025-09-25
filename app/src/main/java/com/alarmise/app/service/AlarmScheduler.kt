@@ -254,33 +254,50 @@ class AlarmScheduler @Inject constructor(
      */
     private fun scheduleStartAlarm(alarm: Alarm, startTimeMillis: Long) {
         try {
+            android.util.Log.d("AlarmScheduler", "⏰ scheduleStartAlarm() called for alarm ID: ${alarm.id}")
+            android.util.Log.d("AlarmScheduler", "⏰ Alarm label: '${alarm.label}'")
+            android.util.Log.d("AlarmScheduler", "⏰ Start time millis: $startTimeMillis")
+            android.util.Log.d("AlarmScheduler", "⏰ Current time millis: ${System.currentTimeMillis()}")
+            android.util.Log.d("AlarmScheduler", "⏰ Time until alarm: ${startTimeMillis - System.currentTimeMillis()} ms")
+            
             val startIntent = Intent(context, AlarmReceiver::class.java).apply {
                 putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarm.id)
                 putExtra("alarm_label", alarm.label)
                 putExtra("start_time", alarm.startTime.toString())
             }
             
+            android.util.Log.d("AlarmScheduler", "⏰ Created intent with extras: ${startIntent.extras}")
+            
+            val requestCode = (START_ALARM_REQUEST_CODE_BASE + alarm.id).toInt()
+            android.util.Log.d("AlarmScheduler", "⏰ Using request code: $requestCode")
+            
             val startPendingIntent = PendingIntent.getBroadcast(
                 context,
-                (START_ALARM_REQUEST_CODE_BASE + alarm.id).toInt(),
+                requestCode,
                 startIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             
+            android.util.Log.d("AlarmScheduler", "⏰ Created PendingIntent: $startPendingIntent")
+            
             // Use exact alarm for precision (critical requirement)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.util.Log.d("AlarmScheduler", "⏰ Using setExactAndAllowWhileIdle() for Android M+")
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
                     startTimeMillis,
                     startPendingIntent
                 )
             } else {
+                android.util.Log.d("AlarmScheduler", "⏰ Using setExact() for Android < M")
                 alarmManager.setExact(
                     AlarmManager.RTC_WAKEUP,
                     startTimeMillis,
                     startPendingIntent
                 )
             }
+            
+            android.util.Log.d("AlarmScheduler", "⏰ Successfully scheduled alarm with AlarmManager!")
             
             AlarmLogger.logDebug("Schedule Start Alarm", mapOf(
                 "alarmId" to alarm.id,
@@ -289,6 +306,7 @@ class AlarmScheduler @Inject constructor(
             ))
             
         } catch (e: Exception) {
+            android.util.Log.e("AlarmScheduler", "⏰ Error scheduling start alarm", e)
             AlarmLogger.logError("Schedule Start Alarm", alarm.id, e)
             throw e
         }
